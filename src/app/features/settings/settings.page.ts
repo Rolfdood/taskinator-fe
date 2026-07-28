@@ -114,7 +114,7 @@ export class SettingsPage implements OnInit {
       this.emailForm.reset({ newEmail: '' });
       this.notice.set('Email updated.');
     } catch (error) {
-      this.error.set(problemMessage(error));
+      this.error.set(problemMessage(error, { context: 'emailUpdate' }));
     } finally {
       this.saving.set(false);
     }
@@ -132,7 +132,7 @@ export class SettingsPage implements OnInit {
       this.passwordForm.reset({ currentPassword: '', newPassword: '' });
       this.notice.set('Password updated.');
     } catch (error) {
-      this.error.set(problemMessage(error));
+      this.error.set(problemMessage(error, { context: 'passwordUpdate' }));
     } finally {
       this.saving.set(false);
     }

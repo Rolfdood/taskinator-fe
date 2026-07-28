@@ -23,7 +23,7 @@ describe('AuthService', () => {
       login: () => of({ accessToken: 'access-token', expiresIn: 900 }),
     });
 
-    await service.login({ email: 'me@example.com', password: 'secret123' });
+    await service.login({ email: 'me@example.com', password: 'test-password' });
 
     expect(service.accessToken()).toBe('access-token');
     expect(service.session().status).toBe('authenticated');
@@ -47,7 +47,7 @@ describe('AuthService', () => {
       logout: () => throwError(() => new Error('network')),
     });
 
-    await service.login({ email: 'me@example.com', password: 'secret123' });
+    await service.login({ email: 'me@example.com', password: 'test-password' });
     await service.logout();
 
     expect(service.accessToken()).toBeNull();

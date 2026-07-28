@@ -114,7 +114,7 @@ export class RegisterPage {
       await this.auth.register(this.form.getRawValue());
       await this.router.navigateByUrl('/app/projects');
     } catch (error) {
-      this.error.set(problemMessage(error));
+      this.error.set(problemMessage(error, { context: 'register' }));
     } finally {
       this.loading.set(false);
     }

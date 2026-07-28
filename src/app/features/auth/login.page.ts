@@ -91,7 +91,7 @@ export class LoginPage {
       await this.auth.login(this.form.getRawValue());
       await this.router.navigateByUrl('/app/projects');
     } catch (error) {
-      this.error.set(problemMessage(error));
+      this.error.set(problemMessage(error, { context: 'login' }));
     } finally {
       this.loading.set(false);
     }
