@@ -4,10 +4,6 @@ export const config = {
   outputDirectory: 'dist/taskinator-fe/browser',
   rewrites: [
     {
-      source: '/api/:path*',
-      destination: 'https://taskinator-production-040f.up.railway.app/api/:path*',
-    },
-    {
       source: '/(.*)',
       destination: '/index.html',
     },
