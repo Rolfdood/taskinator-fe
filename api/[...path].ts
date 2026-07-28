@@ -1,129 +1,100 @@
 export const config = { runtime: 'nodejs' };
 
-type HeaderValue = string | string[] | undefined;
-
-interface ProxyRequest {
-  method?: string;
-  url?: string;
-  query?: {
-    path?: string | string[];
-  };
-  headers?: Record<string, HeaderValue>;
-  body?: unknown;
-}
-
-interface ProxyResponse {
-  status(code: number): ProxyResponse;
-  setHeader(name: string, value: string | string[]): ProxyResponse;
-  json(body: unknown): ProxyResponse;
-  send(body: unknown): ProxyResponse;
-}
-
 const blockedRequestHeaders = new Set(['host', 'connection', 'content-length', 'accept-encoding']);
 const blockedResponseHeaders = new Set(['connection', 'content-encoding', 'content-length', 'transfer-encoding']);
 
-export default async function handler(request: ProxyRequest, response: ProxyResponse): Promise<void> {
-  const apiOrigin = configuredApiOrigin();
+export default {
+  async fetch(request: Request): Promise<Response> {
+    const apiOrigin = configuredApiOrigin();
 
-  if (!apiOrigin) {
-    console.error('RAILWAY_API_ORIGIN is not configured.');
-    response.status(500).json({ message: 'The API proxy is not configured.' });
-    return;
-  }
+    if (!apiOrigin) {
+      console.error('RAILWAY_API_ORIGIN is not configured.');
+      return jsonResponse(500, { message: 'The API proxy is not configured.' });
+    }
 
-  const target = targetUrl(apiOrigin, request);
-  console.log(`Proxying ${request.method ?? 'GET'} ${request.url ?? '<unknown>'} -> ${target}`);
+    const target = targetUrl(request, apiOrigin);
+    const url = new URL(request.url);
+    console.log(`Proxying ${request.method} ${url.pathname}${url.search} -> ${target}`);
 
-  try {
-    const upstream = await fetch(target, {
-      method: request.method ?? 'GET',
-      headers: requestHeaders(request.headers ?? {}),
-      body: requestBody(request),
-    });
+    try {
+      const upstream = await fetch(target, {
+        method: request.method,
+        headers: forwardedRequestHeaders(request.headers),
+        body: await forwardedBody(request),
+      });
 
-    console.log(`Upstream response: ${upstream.status} ${target}`);
-    applyResponseHeaders(upstream.headers, response);
-    response.status(upstream.status).send(await upstream.text());
-  } catch (error) {
-    console.error('Proxy failed to reach upstream API.', error);
-    response.status(500).json({ message: 'Failed to reach the upstream API.' });
-  }
-}
+      console.log(`Upstream response: ${upstream.status} ${target}`);
+      return forwardedResponse(upstream);
+    } catch (error) {
+      console.error('Proxy failed to reach upstream API.', error);
+      return jsonResponse(500, { message: 'Failed to reach the upstream API.' });
+    }
+  },
+};
 
 function configuredApiOrigin(): string | null {
   const origin = process.env['RAILWAY_API_ORIGIN']?.trim();
-
   return origin ? origin.replace(/\/+$/, '') : null;
 }
 
-function targetUrl(apiOrigin: string, request: ProxyRequest): string {
-  const path = request.query?.path;
-  const segments = Array.isArray(path) ? path : path ? [path] : [];
-  const forwardedPath = segments.map(encodeURIComponent).join('/');
-  const queryString = forwardedQueryString(request.url);
-
-  return `${apiOrigin}/api/${forwardedPath}${queryString}`;
-}
-
-function forwardedQueryString(url: string | undefined): string {
-  if (!url || !url.includes('?')) {
-    return '';
-  }
-
-  const params = new URLSearchParams(url.split('?')[1]);
+function targetUrl(request: Request, apiOrigin: string): string {
+  const url = new URL(request.url);
+  const path = url.pathname.replace(/^\/api\//, '');
+  const params = new URLSearchParams(url.search);
   params.delete('path');
-
   const query = params.toString();
-  return query ? `?${query}` : '';
+
+  return `${apiOrigin}/api/${path}${query ? `?${query}` : ''}`;
 }
 
-function requestHeaders(headers: Record<string, HeaderValue>): Headers {
-  const forwardedHeaders = new Headers();
+function forwardedRequestHeaders(headers: Headers): Headers {
+  const forwarded = new Headers();
 
-  for (const [name, value] of Object.entries(headers)) {
-    if (blockedRequestHeaders.has(name.toLowerCase()) || value === undefined) {
-      continue;
+  headers.forEach((value, name) => {
+    if (blockedRequestHeaders.has(name.toLowerCase())) {
+      return;
     }
+    forwarded.set(name, value);
+  });
 
-    if (Array.isArray(value)) {
-      forwardedHeaders.set(name, value.join(', '));
-    } else {
-      forwardedHeaders.set(name, value);
-    }
-  }
-
-  return forwardedHeaders;
+  return forwarded;
 }
 
-function requestBody(request: ProxyRequest): BodyInit | undefined {
-  const method = request.method?.toUpperCase() ?? 'GET';
+async function forwardedBody(request: Request): Promise<BodyInit | undefined> {
+  const method = request.method.toUpperCase();
 
-  if (method === 'GET' || method === 'HEAD' || request.body === undefined) {
+  if (method === 'GET' || method === 'HEAD') {
     return undefined;
   }
 
-  return typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
+  return request.text();
 }
 
-function applyResponseHeaders(headers: Headers, response: ProxyResponse): void {
-  const setCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.();
+async function forwardedResponse(upstream: Response): Promise<Response> {
+  const headers = new Headers();
 
-  headers.forEach((value, name) => {
-    const normalizedName = name.toLowerCase();
-
-    if (blockedResponseHeaders.has(normalizedName) || normalizedName === 'set-cookie') {
+  upstream.headers.forEach((value, name) => {
+    if (blockedResponseHeaders.has(name.toLowerCase())) {
       return;
     }
-
-    response.setHeader(name, value);
+    headers.set(name, value);
   });
 
+  const setCookie = (upstream.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.();
   if (setCookie?.length) {
-    response.setHeader('set-cookie', setCookie);
-  } else {
-    const singleCookie = headers.get('set-cookie');
-    if (singleCookie) {
-      response.setHeader('set-cookie', singleCookie);
-    }
+    headers.set('set-cookie', setCookie.join(', '));
   }
+
+  return new Response(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers,
+  });
+}
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
 }
