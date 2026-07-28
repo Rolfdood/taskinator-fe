@@ -1,10 +1,19 @@
-import handler from '../api/[...path]';
+import handler, { config } from '../api/[...path]';
 
 declare const process: { env: Record<string, string | undefined> };
 
 describe('Vercel API proxy', () => {
+  it('configures the function to run on the Node.js runtime', () => {
+    expect(config).toEqual({ runtime: 'nodejs' });
+  });
+
   const originalFetch = globalThis.fetch;
   const originalOrigin = process.env['RAILWAY_API_ORIGIN'];
+
+  beforeEach(() => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
@@ -13,6 +22,7 @@ describe('Vercel API proxy', () => {
     } else {
       process.env['RAILWAY_API_ORIGIN'] = originalOrigin;
     }
+    vi.restoreAllMocks();
   });
 
   it('requires a Railway API origin at runtime', async () => {
@@ -60,6 +70,37 @@ describe('Vercel API proxy', () => {
     expect(response.headers['content-type']).toBe('application/json');
     expect(response.headers['set-cookie']).toEqual(['refresh=abc; HttpOnly; Path=/']);
     expect(response.body).toBe(JSON.stringify({ ok: true }));
+  });
+
+  it('does not forward the Vercel rewrite path query param to the upstream', async () => {
+    process.env['RAILWAY_API_ORIGIN'] = 'https://api.example.test/';
+    const upstreamResponse = new Response(JSON.stringify({ ok: true }), { status: 200 });
+    const fetchMock = vi.fn().mockResolvedValue(upstreamResponse);
+    globalThis.fetch = fetchMock;
+
+    await handler(
+      createRequest({
+        url: '/api/[...path]?path=v1/projects&active=true',
+        query: { path: ['v1', 'projects'] },
+      }),
+      createResponse(),
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/projects?active=true',
+      expect.anything(),
+    );
+  });
+
+  it('returns 500 when the upstream cannot be reached', async () => {
+    process.env['RAILWAY_API_ORIGIN'] = 'https://api.example.test/';
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network failure'));
+    const response = createResponse();
+
+    await handler(createRequest({ url: '/api/v1/projects', query: { path: ['v1', 'projects'] } }), response);
+
+    expect(response.statusCode).toBe(500);
+    expect(response.body).toEqual({ message: 'Failed to reach the upstream API.' });
   });
 });
 
