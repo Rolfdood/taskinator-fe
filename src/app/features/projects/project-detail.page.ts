@@ -1,81 +1,68 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { LucideAngularModule, Trash, Users, ShieldCheck } from 'lucide-angular';
 import { ProjectsApi } from '../../core/api/projects.api';
 import { problemMessage } from '../../core/api/problem-detail';
 import { ProjectDto } from '../../shared/types/api.types';
+import { ConfirmDialogComponent } from '../../shared/ui/confirm-dialog.component';
+import { MenuComponent, MenuItem } from '../../shared/ui/menu.component';
 
 @Component({
   selector: 'app-project-detail-page',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterOutlet, LucideAngularModule, MenuComponent, ConfirmDialogComponent],
   template: `
-    <main class="page">
+    <main class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       @if (error()) {
         <p class="error-banner">{{ error() }}</p>
       }
 
-      <header class="detail-header panel">
-        <div>
-          <a routerLink="/app/projects" class="back-link">Projects</a>
-          <h1>{{ project()?.name || 'Project' }}</h1>
-          <p class="muted">{{ project()?.description || 'No description' }}</p>
+      <header class="panel flex items-start justify-between gap-4 px-5 py-4">
+        <div class="min-w-0">
+          <a routerLink="/app/projects" class="text-xs font-semibold text-muted hover:text-ink">
+            ← Projects
+          </a>
+          <h1 class="mt-1 truncate text-2xl font-bold tracking-tight text-ink">
+            {{ project()?.name || 'Project' }}
+          </h1>
+          <p class="mt-1 text-sm text-muted">{{ project()?.description || 'No description' }}</p>
         </div>
-        <nav>
-          <a [routerLink]="['/app/projects', projectId(), 'tasks']" routerLinkActive="active">Tasks</a>
-          <a [routerLink]="['/app/projects', projectId(), 'members']" routerLinkActive="active">Members</a>
-          <a [routerLink]="['/app/projects', projectId(), 'roles']" routerLinkActive="active">Roles</a>
-        </nav>
+        <app-menu [items]="settingsItems()" label="Project settings" />
       </header>
 
       <router-outlet />
     </main>
-  `,
-  styles: `
-    .page {
-      display: grid;
-      gap: 1rem;
-      padding: 1.25rem;
-    }
-    .detail-header {
-      display: grid;
-      gap: 1rem;
-      padding: 1rem;
-    }
-    h1 {
-      margin: 0.2rem 0;
-    }
-    .back-link {
-      color: var(--color-muted);
-      font-size: 0.85rem;
-      font-weight: 800;
-      text-decoration: none;
-    }
-    nav {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    nav a {
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      padding: 0.5rem 0.75rem;
-      text-decoration: none;
-    }
-    nav a.active {
-      background: var(--color-text);
-      border-color: var(--color-text);
-      color: var(--color-bg);
+
+    @if (deleting()) {
+      <app-confirm-dialog
+        title="Delete project?"
+        [message]="deleteMessage()"
+        confirmLabel="Delete project"
+        [busy]="deletingBusy()"
+        (confirm)="confirmDelete()"
+        (cancelled)="deleting.set(false)"
+      />
     }
   `,
 })
 export class ProjectDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly api = inject(ProjectsApi);
+
+  readonly membersIcon = Users;
+  readonly rolesIcon = ShieldCheck;
+  readonly trashIcon = Trash;
+
   readonly projects = signal<ProjectDto[]>([]);
   readonly error = signal<string | null>(null);
+  readonly deleting = signal(false);
+  readonly deletingBusy = signal(false);
   readonly projectId = computed(() => this.route.snapshot.paramMap.get('projectId') ?? '');
-  readonly project = computed(() => this.projects().find((project) => project.id === this.projectId()) ?? null);
+  readonly project = computed(
+    () => this.projects().find((project) => project.id === this.projectId()) ?? null,
+  );
 
   async ngOnInit(): Promise<void> {
     try {
@@ -85,6 +72,52 @@ export class ProjectDetailPage implements OnInit {
       }
     } catch (error) {
       this.error.set(problemMessage(error));
+    }
+  }
+
+  settingsItems(): MenuItem[] {
+    return [
+      {
+        label: 'Members',
+        icon: this.membersIcon,
+        onSelect: () => this.navigate('members'),
+      },
+      {
+        label: 'Roles',
+        icon: this.rolesIcon,
+        onSelect: () => this.navigate('roles'),
+      },
+      {
+        label: 'Delete project',
+        icon: this.trashIcon,
+        danger: true,
+        onSelect: () => this.deleting.set(true),
+      },
+    ];
+  }
+
+  navigate(section: string): void {
+    void this.router.navigate(['/app/projects', this.projectId(), section]);
+  }
+
+  deleteMessage(): string {
+    const project = this.project();
+    return project
+      ? `Delete "${project.name}"? Tasks, documents, and other information related to this project will be permanently deleted. This action cannot be undone.`
+      : '';
+  }
+
+  async confirmDelete(): Promise<void> {
+    this.deletingBusy.set(true);
+    try {
+      await firstValueFrom(this.api.delete(this.projectId()));
+      this.deleting.set(false);
+      await this.router.navigate(['/app/projects']);
+    } catch (error) {
+      this.error.set(problemMessage(error));
+      this.deleting.set(false);
+    } finally {
+      this.deletingBusy.set(false);
     }
   }
 }

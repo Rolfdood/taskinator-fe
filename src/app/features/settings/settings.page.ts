@@ -3,89 +3,80 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { firstValueFrom } from 'rxjs';
 import { problemMessage } from '../../core/api/problem-detail';
 import { UserApi } from '../../core/api/user.api';
-import { UserDto } from '../../shared/types/api.types';
+import { UserDto, displayName } from '../../shared/types/api.types';
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
   imports: [ReactiveFormsModule],
   template: `
-    <main class="page">
+    <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
       <header>
-        <h1>Settings</h1>
-        <p class="muted">Manage your Taskinator profile credentials.</p>
+        <h1 class="text-2xl font-bold tracking-tight text-ink">Settings</h1>
+        <p class="mt-1 text-sm text-muted">Manage your Taskinator profile credentials.</p>
       </header>
 
       @if (error()) {
         <p class="error-banner">{{ error() }}</p>
       }
       @if (notice()) {
-        <p class="notice">{{ notice() }}</p>
+        <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
+          {{ notice() }}
+        </p>
       }
 
-      <section class="panel profile">
-        <h2>Profile</h2>
-        <p><strong>{{ user()?.firstName }} {{ user()?.lastName }}</strong></p>
-        <p class="muted">{{ user()?.email || 'Loading profile' }}</p>
+      <section class="panel flex items-center gap-4 px-5 py-4">
+        <span
+          class="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-lg font-bold text-white"
+        >
+          {{ initial() }}
+        </span>
+        <div>
+          <p class="font-semibold text-ink">{{ displayName(user()?.name) || 'Loading profile' }}</p>
+          <p class="text-sm text-muted">{{ user()?.email || 'Loading profile' }}</p>
+        </div>
       </section>
 
-      <section class="panel form-panel">
-        <form [formGroup]="emailForm" (ngSubmit)="changeEmail()">
-          <h2>Change email</h2>
+      <section class="panel px-5 py-4">
+        <form [formGroup]="emailForm" (ngSubmit)="changeEmail()" class="grid gap-4">
+          <h2 class="text-base font-semibold text-ink">Change email</h2>
           <div class="field">
-            <label for="newEmail">New email</label>
-            <input id="newEmail" type="email" formControlName="newEmail" />
+            <label class="label" for="newEmail">New email</label>
+            <input id="newEmail" class="input" type="email" formControlName="newEmail" />
           </div>
-          <button class="button" type="submit" [disabled]="emailForm.invalid || saving()">Update email</button>
+          <div>
+            <button class="btn btn-primary" type="submit" [disabled]="emailForm.invalid || saving()">
+              Update email
+            </button>
+          </div>
         </form>
       </section>
 
-      <section class="panel form-panel">
-        <form [formGroup]="passwordForm" (ngSubmit)="changePassword()">
-          <h2>Change password</h2>
+      <section class="panel px-5 py-4">
+        <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="grid gap-4">
+          <h2 class="text-base font-semibold text-ink">Change password</h2>
           <div class="field">
-            <label for="currentPassword">Current password</label>
-            <input id="currentPassword" type="password" formControlName="currentPassword" />
+            <label class="label" for="currentPassword">Current password</label>
+            <input id="currentPassword" class="input" type="password" formControlName="currentPassword" />
           </div>
           <div class="field">
-            <label for="newPassword">New password</label>
-            <input id="newPassword" type="password" formControlName="newPassword" />
+            <label class="label" for="newPassword">New password</label>
+            <input id="newPassword" class="input" type="password" formControlName="newPassword" />
           </div>
-          <button class="button" type="submit" [disabled]="passwordForm.invalid || saving()">Update password</button>
+          <div>
+            <button class="btn btn-primary" type="submit" [disabled]="passwordForm.invalid || saving()">
+              Update password
+            </button>
+          </div>
         </form>
       </section>
     </main>
-  `,
-  styles: `
-    .page {
-      display: grid;
-      gap: 1rem;
-      padding: 1.25rem;
-    }
-    h1,
-    h2 {
-      margin: 0;
-    }
-    .profile,
-    .form-panel {
-      padding: 1rem;
-    }
-    form {
-      display: grid;
-      gap: 0.85rem;
-      max-width: 34rem;
-    }
-    .notice {
-      background: var(--color-bg);
-      border: 1px solid var(--color-border-strong);
-      border-radius: 6px;
-      padding: 0.75rem;
-    }
   `,
 })
 export class SettingsPage implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly api = inject(UserApi);
+  readonly displayName = displayName;
   readonly user = signal<UserDto | null>(null);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -100,6 +91,11 @@ export class SettingsPage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.load();
+  }
+
+  initial(): string {
+    const name = displayName(this.user()?.name);
+    return name.trim().charAt(0).toUpperCase() || '?';
   }
 
   async changeEmail(): Promise<void> {

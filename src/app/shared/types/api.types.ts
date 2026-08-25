@@ -26,11 +26,18 @@ export interface RegisterRequest extends LoginRequest {
   lastName: string;
 }
 
+export interface NameDto {
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+  suffix?: string | null;
+  fullName?: string | null;
+}
+
 export interface UserDto {
   id: UUID;
   email: string;
-  firstName: string;
-  lastName: string;
+  name: NameDto;
 }
 
 export interface ProjectDto {
@@ -66,6 +73,7 @@ export interface TaskRequest {
 export interface MemberDto {
   userId: UUID;
   email: string;
+  name?: NameDto;
   firstName?: string;
   lastName?: string;
   roleId: UUID;
@@ -124,4 +132,16 @@ export function toApiDateTime(value: string | null): string | null {
 
 export function toDateInputValue(value: string | null | undefined): string {
   return value ? value.slice(0, 10) : '';
+}
+
+export function displayName(name?: NameDto | null): string {
+  if (!name) {
+    return '';
+  }
+  if (name.fullName) {
+    return name.fullName;
+  }
+  return [name.firstName, name.middleName, name.lastName, name.suffix]
+    .filter((part) => part && part.trim().length > 0)
+    .join(' ');
 }
