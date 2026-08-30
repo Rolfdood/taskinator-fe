@@ -58,8 +58,9 @@ export interface TaskDto {
   description?: string | null;
   status: TaskStatus;
   dueDate?: string | null;
-  assignedTo?: UUID | null;
-  assigneeName?: string | null;
+  assignedToId?: UUID | null;
+  assignedToName?: string | null;
+  assignedToEmail?: string | null;
 }
 
 export interface TaskRequest {

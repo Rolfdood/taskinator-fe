@@ -82,7 +82,7 @@ import { MenuComponent, MenuItem } from '../../shared/ui/menu.component';
                 }
                 <div class="mt-3 flex items-center justify-between text-xs text-muted">
                   <span>{{ toDate(task.dueDate) || 'No due date' }}</span>
-                  <span>{{ task.assigneeName || 'Unassigned' }}</span>
+                  <span>{{ task.assignedToName || 'Unassigned' }}</span>
                 </div>
               </article>
             } @empty {
@@ -248,7 +248,7 @@ export class TasksPage implements OnInit {
       description: task.description ?? '',
       status: task.status,
       dueDate: toDateInputValue(task.dueDate),
-      assignedTo: task.assignedTo ?? '',
+      assignedTo: task.assignedToId ?? '',
     });
     this.formOpen.set(true);
   }
@@ -340,7 +340,7 @@ export class TasksPage implements OnInit {
       description: task.description ?? null,
       status: task.status,
       dueDate: task.dueDate ?? null,
-      assignedTo: task.assignedTo ?? null,
+      assignedTo: task.assignedToId ?? null,
     };
   }
 
