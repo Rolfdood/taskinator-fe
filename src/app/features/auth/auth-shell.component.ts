@@ -6,33 +6,12 @@ import { RouterLink, RouterOutlet } from '@angular/router';
   standalone: true,
   imports: [RouterLink, RouterOutlet],
   template: `
-    <main class="auth-shell">
-      <section class="auth-panel panel">
-        <a routerLink="/login" class="brand">Taskinator</a>
+    <main class="flex min-h-screen items-center justify-center bg-canvas p-4">
+      <section class="panel flex w-full max-w-md flex-col gap-5 p-6">
+        <a routerLink="/login" class="text-xl font-bold text-ink">Taskinator</a>
         <router-outlet />
       </section>
     </main>
-  `,
-  styles: `
-    .auth-shell {
-      align-items: center;
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 1.25rem;
-    }
-    .auth-panel {
-      display: grid;
-      gap: 1.25rem;
-      max-width: 28rem;
-      padding: 1.25rem;
-      width: 100%;
-    }
-    .brand {
-      font-size: 1.3rem;
-      font-weight: 900;
-      text-decoration: none;
-    }
   `,
 })
 export class AuthShellComponent {}

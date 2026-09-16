@@ -9,12 +9,12 @@ import { problemMessage } from '../../core/api/problem-detail';
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
   template: `
-    <main class="auth-page">
-      <form class="panel auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <main class="flex min-h-screen items-center justify-center bg-canvas p-4">
+      <form class="panel flex w-full max-w-md flex-col gap-5 p-6" [formGroup]="form" (ngSubmit)="submit()">
         <header>
-          <p class="eyebrow">Taskinator</p>
-          <h1>Log in</h1>
-          <p class="muted">Access your projects, tasks, members, and roles.</p>
+          <p class="text-xs font-bold uppercase tracking-wider text-brand">Taskinator</p>
+          <h1 class="mt-1 text-2xl font-bold tracking-tight text-ink">Log in</h1>
+          <p class="mt-1 text-sm text-muted">Access your projects, tasks, members, and roles.</p>
         </header>
 
         @if (error()) {
@@ -22,50 +22,31 @@ import { problemMessage } from '../../core/api/problem-detail';
         }
 
         <div class="field">
-          <label for="email">Email</label>
-          <input id="email" type="email" formControlName="email" autocomplete="email" />
+          <label class="label" for="email">Email</label>
+          <input id="email" class="input" type="email" formControlName="email" autocomplete="email" />
         </div>
 
         <div class="field">
-          <label for="password">Password</label>
-          <input id="password" type="password" formControlName="password" autocomplete="current-password" />
+          <label class="label" for="password">Password</label>
+          <input
+            id="password"
+            class="input"
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+          />
         </div>
 
-        <button class="button" type="submit" [disabled]="form.invalid || loading()">
+        <button class="btn btn-primary" type="submit" [disabled]="form.invalid || loading()">
           {{ loading() ? 'Logging in' : 'Log in' }}
         </button>
 
-        <p class="muted">No account? <a routerLink="/register">Create one</a></p>
+        <p class="text-sm text-muted">
+          No account?
+          <a routerLink="/register" class="font-semibold text-brand hover:text-brand-strong">Create one</a>
+        </p>
       </form>
     </main>
-  `,
-  styles: `
-    .auth-page {
-      align-items: center;
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 1.25rem;
-    }
-    .auth-card {
-      display: grid;
-      gap: 1rem;
-      max-width: 28rem;
-      padding: 1.25rem;
-      width: 100%;
-    }
-    h1 {
-      font-size: 1.8rem;
-      margin: 0.2rem 0;
-    }
-    .eyebrow {
-      color: var(--color-muted);
-      font-size: 0.8rem;
-      font-weight: 900;
-      letter-spacing: 0;
-      margin: 0;
-      text-transform: uppercase;
-    }
   `,
 })
 export class LoginPage {

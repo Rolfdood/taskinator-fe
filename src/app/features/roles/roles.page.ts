@@ -5,135 +5,98 @@ import { firstValueFrom } from 'rxjs';
 import { problemMessage } from '../../core/api/problem-detail';
 import { RolesApi } from '../../core/api/roles.api';
 import { PROJECT_PERMISSIONS, ProjectPermission, RoleDto } from '../../shared/types/api.types';
+import { ConfirmDialogComponent } from '../../shared/ui/confirm-dialog.component';
 
 @Component({
   selector: 'app-roles-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ConfirmDialogComponent],
   template: `
-    <section class="panel feature">
+    <main class="flex flex-col gap-6">
       <header>
-        <h2>{{ editing() ? 'Edit role' : 'New role' }}</h2>
-        <p class="muted">Create project roles from explicit permission sets.</p>
+        <h2 class="text-xl font-bold tracking-tight text-ink">{{ editing() ? 'Edit role' : 'New role' }}</h2>
+        <p class="mt-0.5 text-sm text-muted">Create project roles from explicit permission sets.</p>
       </header>
 
       @if (error()) {
         <p class="error-banner">{{ error() }}</p>
       }
 
-      <form [formGroup]="form" (ngSubmit)="save()">
-        <div class="field">
-          <label for="name">Role name</label>
-          <input id="name" formControlName="name" />
-        </div>
-        <fieldset>
-          <legend>Permissions</legend>
-          @for (permission of permissions; track permission) {
-            <label class="check">
-              <input
-                type="checkbox"
-                [checked]="selected().includes(permission)"
-                (change)="toggle(permission, $event)"
-              />
-              <span>{{ permission }}</span>
-            </label>
-          }
-        </fieldset>
-        <div class="actions">
-          <button class="button" type="submit" [disabled]="form.invalid || !selected().length || saving()">Save role</button>
-          @if (editing()) {
-            <button class="button secondary" type="button" (click)="resetForm()">Cancel</button>
-          }
-        </div>
-      </form>
-    </section>
-
-    <section class="panel table-panel">
-      @if (!roles().length) {
-        <p class="muted">No roles found.</p>
-      } @else {
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Permissions</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (role of roles(); track role.id) {
-              <tr>
-                <td><strong>{{ role.name }}</strong></td>
-                <td>{{ role.permissions.join(', ') }}</td>
-                <td>{{ role.createdAt?.slice(0, 10) || 'Unknown' }}</td>
-                <td class="actions">
-                  <button class="button secondary" type="button" (click)="edit(role)">Edit</button>
-                  <button class="button danger" type="button" (click)="delete(role)">Delete</button>
-                </td>
-              </tr>
+      <section class="panel px-5 py-4">
+        <form [formGroup]="form" (ngSubmit)="save()" class="grid gap-4">
+          <div class="field">
+            <label class="label" for="name">Role name</label>
+            <input id="name" class="input" formControlName="name" placeholder="e.g. Editor" />
+          </div>
+          <fieldset class="grid gap-2 rounded-xl border border-line p-4">
+            <legend class="px-1 text-xs font-semibold text-muted">Permissions</legend>
+            @for (permission of permissions; track permission) {
+              <label class="flex items-center gap-2.5 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-line-strong text-brand focus:ring-brand"
+                  [checked]="selected().includes(permission)"
+                  (change)="toggle(permission, $event)"
+                />
+                <span>{{ permission }}</span>
+              </label>
             }
-          </tbody>
-        </table>
-      }
-    </section>
-  `,
-  styles: `
-    .feature,
-    .table-panel {
-      display: grid;
-      gap: 1rem;
-      padding: 1rem;
-    }
-    form {
-      display: grid;
-      gap: 0.85rem;
-    }
-    h2 {
-      margin: 0;
-    }
-    fieldset {
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      display: grid;
-      gap: 0.5rem;
-      margin: 0;
-      padding: 0.8rem;
-    }
-    legend {
-      color: var(--color-muted);
-      font-weight: 800;
-    }
-    .check {
-      align-items: center;
-      display: flex;
-      gap: 0.5rem;
-    }
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-    }
-    th,
-    td {
-      border-bottom: 1px solid var(--color-border);
-      padding: 0.7rem;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      color: var(--color-muted);
-      font-size: 0.8rem;
-      text-transform: uppercase;
-    }
-    @media (max-width: 760px) {
-      .table-panel {
-        overflow-x: auto;
-      }
+          </fieldset>
+          <div class="flex items-center gap-2">
+            <button class="btn btn-primary" type="submit" [disabled]="form.invalid || !selected().length || saving()">
+              Save role
+            </button>
+            @if (editing()) {
+              <button class="btn btn-secondary" type="button" (click)="resetForm()">Cancel</button>
+            }
+          </div>
+        </form>
+      </section>
+
+      <section class="panel overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-line bg-surface-strong/60 text-xs font-semibold uppercase tracking-wide text-muted">
+                <th class="px-5 py-3">Name</th>
+                <th class="px-5 py-3">Permissions</th>
+                <th class="px-5 py-3">Created</th>
+                <th class="px-5 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-line">
+              @for (role of roles(); track role.id) {
+                <tr>
+                  <td class="px-5 py-3 font-semibold text-ink">{{ role.name }}</td>
+                  <td class="px-5 py-3 text-muted">{{ role.permissions.join(', ') }}</td>
+                  <td class="px-5 py-3 text-muted">{{ role.createdAt?.slice(0, 10) || 'Unknown' }}</td>
+                  <td class="px-5 py-3">
+                    <div class="flex justify-end gap-2">
+                      <button class="btn btn-secondary" type="button" (click)="edit(role)">Edit</button>
+                      <button class="btn btn-danger" type="button" (click)="openDelete(role)">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="px-5 py-14 text-center text-muted">No roles found.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    @if (deleting()) {
+      <app-confirm-dialog
+        title="Delete role?"
+        [message]="deleteMessage()"
+        confirmLabel="Delete role"
+        [busy]="saving()"
+        (confirm)="confirmDelete()"
+        (cancelled)="deleting.set(null)"
+      />
     }
   `,
 })
@@ -145,6 +108,7 @@ export class RolesPage implements OnInit {
   readonly roles = signal<RoleDto[]>([]);
   readonly selected = signal<ProjectPermission[]>([]);
   readonly editing = signal<RoleDto | null>(null);
+  readonly deleting = signal<RoleDto | null>(null);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly form = this.fb.group({
@@ -174,12 +138,22 @@ export class RolesPage implements OnInit {
     this.form.reset({ name: '' });
   }
 
+  openDelete(role: RoleDto): void {
+    this.deleting.set(role);
+  }
+
+  deleteMessage(): string {
+    const role = this.deleting();
+    return role ? `Delete the "${role.name}" role? Members assigned to this role will lose those permissions.` : '';
+  }
+
   async save(): Promise<void> {
     if (this.form.invalid || !this.selected().length) {
       this.form.markAllAsTouched();
       return;
     }
     this.saving.set(true);
+    this.error.set(null);
     try {
       const request = { name: this.form.controls.name.value, permissions: this.selected() };
       const existing = this.editing();
@@ -197,15 +171,21 @@ export class RolesPage implements OnInit {
     }
   }
 
-  async delete(role: RoleDto): Promise<void> {
-    if (!confirm(`Delete ${role.name}?`)) {
+  async confirmDelete(): Promise<void> {
+    const role = this.deleting();
+    if (!role) {
       return;
     }
+    this.saving.set(true);
     try {
       await firstValueFrom(this.api.delete(this.projectId(), role.id));
+      this.deleting.set(null);
       await this.load();
     } catch (error) {
       this.error.set(problemMessage(error));
+      this.deleting.set(null);
+    } finally {
+      this.saving.set(false);
     }
   }
 
